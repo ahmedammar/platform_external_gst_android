@@ -24,6 +24,8 @@
 #include <gst/video/gstvideosink.h>
 #include <gst/video/video.h>
 #include "surfaceflinger_wrap.h"
+#include "gstbufmeta.h"
+#include "mfw_gst_utils.h"
 
 G_BEGIN_DECLS
 #define GST_TYPE_SURFACEFLINGERSINK \
@@ -46,12 +48,13 @@ struct _GstSurfaceFlingerSink
   gint pixel_format;
   VideoFlingerDeviceHandle videodev;
   int width, height;
+  int crop_top, crop_bot, crop_right, crop_left;
   int fps_n, fps_d;
 };
 
 struct _GstSurfaceFlingerSinkClass
 {
-  GstBaseSinkClass parent_class;
+  GstVideoSinkClass parent_class;
 };
 
 GType gst_surfaceflinger_sink_get_type (void);

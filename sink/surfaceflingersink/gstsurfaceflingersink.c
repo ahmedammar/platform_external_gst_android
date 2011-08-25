@@ -76,21 +76,35 @@ static GstVideoSinkClass *parent_class = NULL;
 /* TODO: support more pixel form in the future */
 #define GST_SURFACE_TEMPLATE_CAPS GST_VIDEO_CAPS_RGB_16
 
+/* Only support I420 for now */
+static GstStaticPadTemplate sink_factory = 
+GST_STATIC_PAD_TEMPLATE (
+    "sink",
+    GST_PAD_SINK,
+    GST_PAD_ALWAYS,
+    GST_STATIC_CAPS (
+      "video/x-raw-yuv, "
+      "format=(fourcc)I420, "
+      "framerate = (fraction) [ 0, MAX ], "
+      "width = (int) [ 1, MAX ], " "height = (int) [ 1, MAX ]"
+    )
+);
+
 static void
 gst_surfaceflinger_sink_base_init (gpointer g_class)
 {
   GstElementClass *element_class = GST_ELEMENT_CLASS (g_class);
-
+#if 0
   static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
       GST_PAD_SINK,
       GST_PAD_ALWAYS,
       GST_STATIC_CAPS (GST_SURFACE_TEMPLATE_CAPS)
       );
-
+#endif
   gst_element_class_set_details (element_class,
       &gst_surfaceflinger_sink_details);
   gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&sink_template));
+      gst_static_pad_template_get (&sink_factory));
 }
 
 
@@ -150,6 +164,15 @@ gst_surfaceflinger_sink_setcaps (GstBaseSink * bsink, GstCaps * vscapslist)
   gst_structure_get_int (structure, "width", &surfacesink->width);
   gst_structure_get_int (structure, "height", &surfacesink->height);
 
+  if (gst_structure_get_int (structure, "crop-top-by-pixel", &surfacesink->crop_top))
+    surfacesink->height += 0;//surfacesink->crop_top;
+  if (gst_structure_get_int (structure, "crop-bottom-by-pixel", &surfacesink->crop_bot))
+    surfacesink->height += 0;//surfacesink->crop_bot;
+  if (gst_structure_get_int (structure, "crop-right-by-pixel", &surfacesink->crop_right))
+    surfacesink->width += 0;//surfacesink->crop_right;
+  if (gst_structure_get_int (structure, "crop-left-by-pixel", &surfacesink->crop_left))
+    surfacesink->width += 0;//surfacesink->crop_left;
+
   GST_DEBUG_OBJECT (surfacesink, "framerate=%d/%d", surfacesink->fps_n,
       surfacesink->fps_d);
   GST_DEBUG_OBJECT (surfacesink,
@@ -157,8 +180,9 @@ gst_surfaceflinger_sink_setcaps (GstBaseSink * bsink, GstCaps * vscapslist)
       surfacesink->width, surfacesink->height, surfacesink->pixel_format);
 
   /* register frame buffer */
-  videoflinger_device_register_framebuffers (surfacesink->videodev,
-      surfacesink->width, surfacesink->height, surfacesink->pixel_format);
+  if(videoflinger_device_register_framebuffers (surfacesink->videodev,
+      surfacesink->width, surfacesink->height, surfacesink->crop_top, surfacesink->crop_bot,  surfacesink->crop_right,  surfacesink->crop_left, surfacesink->pixel_format) < 0)
+      return FALSE;
 
   GST_DEBUG_OBJECT (surfacesink, "gst_surfaceflinger_sink_setcaps return true");
   return TRUE;
@@ -175,8 +199,7 @@ gst_surfaceflinger_sink_render (GstBaseSink * bsink, GstBuffer * buf)
       GST_BUFFER_DATA (buf), GST_BUFFER_SIZE (buf));
 
   /* post frame buffer */
-  videoflinger_device_post (surfacesink->videodev, GST_BUFFER_DATA (buf),
-      GST_BUFFER_SIZE (buf));
+  videoflinger_device_post (surfacesink->videodev, buf);
 
   GST_DEBUG_OBJECT (surfacesink,
       "gst_surfaceflinger_sink_render return GST_FLOW_OK");
@@ -221,6 +244,48 @@ gst_surfaceflinger_sink_stop (GstBaseSink * bsink)
   }
 
   return TRUE;
+}
+
+static
+void free_hwbuffer(gpointer data)
+{
+    GstBufferMeta * meta;
+    if (meta = (GstBufferMeta*)data){
+        GST_ERROR ("free_hwbuffer buf->priv:%p", meta->priv);
+        mfw_free_hw_buffer(meta->priv);
+        gst_buffer_meta_free(meta);
+    }
+}
+
+static GstFlowReturn
+gst_surfaceflinger_sink_alloc (GstBaseSink * bsink, guint64 offset, guint size,
+    GstCaps * caps, GstBuffer ** buf)
+{
+    GST_ERROR("%s: offset:%llu size:%u", __func__, offset, size);
+
+    static int count = 0;
+    gint index;
+    GstBufferMeta *bufmeta;
+    unsigned int *vaddr, *paddr;
+    void * handle;
+    if (!(handle = mfw_new_hw_buffer(size, &paddr, &vaddr, 0))) {
+        GST_ERROR("Could not allocate hardware buffer\n");
+        return GST_FLOW_ERROR;
+    }
+    *buf = gst_buffer_new();
+    GST_BUFFER_SIZE(*buf) = size;
+    GST_BUFFER_DATA(*buf) = vaddr;
+    bufmeta = gst_buffer_meta_new();
+    index = G_N_ELEMENTS((*buf)->_gst_reserved)-1;
+    bufmeta->physical_data = (gpointer) paddr;
+    (*buf)->_gst_reserved[index] = bufmeta;
+    bufmeta->priv = handle;
+    GST_BUFFER_MALLOCDATA(*buf) = bufmeta;
+    GST_BUFFER_FREE_FUNC(*buf) = free_hwbuffer;
+
+    GST_ERROR ("paddr: 0x%x , index: %i, buf->priv: %p", paddr, index, bufmeta->priv);
+
+    return GST_FLOW_OK;
 }
 
 static void
@@ -293,7 +358,7 @@ plugin_init (GstPlugin * plugin)
   GST_DEBUG_CATEGORY_INIT (gst_surfaceflinger_sink_debug, "surfaceflingersink",
       0, "Video sink plugin");
 
-  if (!gst_element_register (plugin, "surfaceflingersink", GST_RANK_NONE,
+  if (!gst_element_register (plugin, "surfaceflingersink", GST_RANK_PRIMARY + 30,
           GST_TYPE_SURFACEFLINGERSINK)) {
     return FALSE;
   }
@@ -306,13 +371,15 @@ gst_surfaceflinger_sink_class_init (GstSurfaceFlingerSinkClass * klass)
 {
   GObjectClass *gobject_class;
   GstElementClass *gstelement_class;
-  GstBaseSinkClass *gstvs_class;
+  GstBaseSinkClass *gstbs_class;
+  GstVideoSinkClass *gstvs_class;
 
   gobject_class = (GObjectClass *) klass;
   gstelement_class = (GstElementClass *) klass;
-  gstvs_class = (GstBaseSinkClass *) klass;
+  gstbs_class = (GstBaseSinkClass *) klass;
+  gstvs_class = (GstVideoSinkClass *) klass;
 
-  parent_class = g_type_class_peek_parent (klass);
+  parent_class = g_type_class_ref (GST_TYPE_VIDEO_SINK);//g_type_class_peek_parent (klass);
 
   gobject_class->set_property = gst_surfaceflinger_sink_set_property;
   gobject_class->get_property = gst_surfaceflinger_sink_get_property;
@@ -325,14 +392,16 @@ gst_surfaceflinger_sink_class_init (GstSurfaceFlingerSinkClass * klass)
       g_param_spec_pointer ("surface", "Surface",
           "The pointer of ISurface interface", G_PARAM_READWRITE));
 
-  gstvs_class->set_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_setcaps);
-  gstvs_class->get_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_getcaps);
-  gstvs_class->get_times =
-      GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_get_times);
-  gstvs_class->preroll = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
-  gstvs_class->render = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
-  gstvs_class->start = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_start);
-  gstvs_class->stop = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_stop);
+  gstbs_class->set_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_setcaps);
+  //gstvs_class->get_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_getcaps);
+  //gstvs_class->get_times =
+  //    GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_get_times);
+  //gstvs_class->preroll = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
+  //gstvs_class->render = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
+  gstbs_class->start = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_start);
+  gstbs_class->stop = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_stop);
+  gstbs_class->buffer_alloc = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_alloc);
+  gstvs_class->show_frame = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
 }
 
 static void
@@ -343,8 +412,8 @@ gst_surfaceflinger_sink_init (GstSurfaceFlingerSink * surfacesink)
 
   surfacesink->fps_n = 0;
   surfacesink->fps_d = 1;
-  surfacesink->width = 320;
-  surfacesink->height = 240;
+  surfacesink->width = 1280;
+  surfacesink->height = 720;
   surfacesink->pixel_format = -1;
 }
 
@@ -375,7 +444,7 @@ gst_surfaceflinger_sink_get_type (void)
     };
 
     surfacesink_type =
-        g_type_register_static (GST_TYPE_BASE_SINK, "GstSurfaceFlingerSink",
+        g_type_register_static (GST_TYPE_VIDEO_SINK, "GstSurfaceFlingerSink",
         &surfacesink_info, 0);
   }
   return surfacesink_type;
