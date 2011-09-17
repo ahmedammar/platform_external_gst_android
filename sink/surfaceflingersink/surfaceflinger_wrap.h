@@ -47,6 +47,7 @@ extern "C"
   {
     VIDEO_FLINGER_RGB_565 = 1,
     VIDEO_FLINGER_RGB_888 = 2,
+    VIDEO_FLINGER_BGRA_8888 = 3,
   } VIDEO_FLINGER_PIXEL_FORMAT;
 
   VideoFlingerDeviceHandle videoflinger_device_create (void *isurface);
@@ -57,7 +58,7 @@ extern "C"
   void videoflinger_device_unregister_framebuffers (VideoFlingerDeviceHandle
       handle);
   void videoflinger_device_post (VideoFlingerDeviceHandle handle, GstBuffer *buf);
-
+  void videoflinger_alloc (VideoFlingerDeviceHandle handle, guint size, GstBuffer **buf);
 #ifdef __cplusplus
 }
 #endif

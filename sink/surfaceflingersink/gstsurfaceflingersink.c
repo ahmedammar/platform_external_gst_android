@@ -261,30 +261,8 @@ static GstFlowReturn
 gst_surfaceflinger_sink_alloc (GstBaseSink * bsink, guint64 offset, guint size,
     GstCaps * caps, GstBuffer ** buf)
 {
-    GST_ERROR("%s: offset:%llu size:%u", __func__, offset, size);
-
-    static int count = 0;
-    gint index;
-    GstBufferMeta *bufmeta;
-    unsigned int *vaddr, *paddr;
-    void * handle;
-    if (!(handle = mfw_new_hw_buffer(size, &paddr, &vaddr, 0))) {
-        GST_ERROR("Could not allocate hardware buffer\n");
-        return GST_FLOW_ERROR;
-    }
-    *buf = gst_buffer_new();
-    GST_BUFFER_SIZE(*buf) = size;
-    GST_BUFFER_DATA(*buf) = vaddr;
-    bufmeta = gst_buffer_meta_new();
-    index = G_N_ELEMENTS((*buf)->_gst_reserved)-1;
-    bufmeta->physical_data = (gpointer) paddr;
-    (*buf)->_gst_reserved[index] = bufmeta;
-    bufmeta->priv = handle;
-    GST_BUFFER_MALLOCDATA(*buf) = bufmeta;
-    GST_BUFFER_FREE_FUNC(*buf) = free_hwbuffer;
-
-    GST_ERROR ("paddr: 0x%x , index: %i, buf->priv: %p", paddr, index, bufmeta->priv);
-
+    GstSurfaceFlingerSink *surfacesink = GST_SURFACEFLINGERSINK (bsink);
+    videoflinger_alloc(surfacesink->videodev, size, buf);
     return GST_FLOW_OK;
 }
 
@@ -394,10 +372,10 @@ gst_surfaceflinger_sink_class_init (GstSurfaceFlingerSinkClass * klass)
 
   gstbs_class->set_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_setcaps);
   //gstvs_class->get_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_getcaps);
-  //gstvs_class->get_times =
+  //gstbs_class->get_times =
   //    GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_get_times);
-  //gstvs_class->preroll = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
-  //gstvs_class->render = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
+  gstbs_class->preroll = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
+  gstbs_class->render = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
   gstbs_class->start = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_start);
   gstbs_class->stop = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_stop);
   gstbs_class->buffer_alloc = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_alloc);
