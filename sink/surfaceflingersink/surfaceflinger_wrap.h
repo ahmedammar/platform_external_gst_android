@@ -58,7 +58,7 @@ extern "C"
   void videoflinger_device_unregister_framebuffers (VideoFlingerDeviceHandle
       handle);
   void videoflinger_device_post (VideoFlingerDeviceHandle handle, GstBuffer *buf);
-  void videoflinger_alloc (VideoFlingerDeviceHandle handle, guint size, GstBuffer **buf);
+  GstFlowReturn videoflinger_alloc (VideoFlingerDeviceHandle handle, guint size, GstBuffer **buf);
 #ifdef __cplusplus
 }
 #endif

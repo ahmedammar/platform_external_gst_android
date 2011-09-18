@@ -94,13 +94,13 @@ static void
 gst_surfaceflinger_sink_base_init (gpointer g_class)
 {
   GstElementClass *element_class = GST_ELEMENT_CLASS (g_class);
-#if 0
+
   static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
       GST_PAD_SINK,
       GST_PAD_ALWAYS,
       GST_STATIC_CAPS (GST_SURFACE_TEMPLATE_CAPS)
       );
-#endif
+
   gst_element_class_set_details (element_class,
       &gst_surfaceflinger_sink_details);
   gst_element_class_add_pad_template (element_class,
@@ -262,8 +262,7 @@ gst_surfaceflinger_sink_alloc (GstBaseSink * bsink, guint64 offset, guint size,
     GstCaps * caps, GstBuffer ** buf)
 {
     GstSurfaceFlingerSink *surfacesink = GST_SURFACEFLINGERSINK (bsink);
-    videoflinger_alloc(surfacesink->videodev, size, buf);
-    return GST_FLOW_OK;
+    return videoflinger_alloc(surfacesink->videodev, size, buf);
 }
 
 static void
@@ -371,11 +370,11 @@ gst_surfaceflinger_sink_class_init (GstSurfaceFlingerSinkClass * klass)
           "The pointer of ISurface interface", G_PARAM_READWRITE));
 
   gstbs_class->set_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_setcaps);
-  //gstvs_class->get_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_getcaps);
+  //gstbs_class->get_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_getcaps);
   //gstbs_class->get_times =
   //    GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_get_times);
-  gstbs_class->preroll = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
-  gstbs_class->render = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
+  //gstbs_class->preroll = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
+  //gstbs_class->render = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
   gstbs_class->start = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_start);
   gstbs_class->stop = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_stop);
   gstbs_class->buffer_alloc = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_alloc);

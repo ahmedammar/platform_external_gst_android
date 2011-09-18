@@ -16,7 +16,7 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
-//#define ENABLE_GST_PLAYER_LOG
+#define ENABLE_GST_PLAYER_LOG
 #include <surfaceflinger/ISurface.h>
 #include <surfaceflinger/Surface.h>
 #include <surfaceflinger/ISurfaceComposer.h>
@@ -28,6 +28,14 @@
 #include "surfaceflinger_wrap.h"
 #include <gst/gst.h>
 #include <asm/memory.h>
+
+#include <utils/Log.h>
+
+
+#define LOG_NDEBUG 0
+
+#undef LOG_TAG
+#define LOG_TAG "GstVideoFlingerSink"
 
 using namespace android;
 
@@ -54,9 +62,6 @@ typedef struct
   int yuv_size;
   int offset;
 } VideoFlingerDevice;
-
-int frameSize = 0;
-
 
 static int videoflinger_device_create_new_surface (VideoFlingerDevice *
     videodev);
@@ -121,7 +126,7 @@ videoflinger_device_create_new_surface (VideoFlingerDevice * videodev)
    */
   sp < SurfaceComposerClient > videoClient = new SurfaceComposerClient;
   if (videoClient.get () == NULL) {
-    GST_ERROR ("Fail to create SurfaceComposerClient\n");
+    LOGE ("Fail to create SurfaceComposerClient\n");
     return -1;
   }
 
@@ -129,8 +134,8 @@ videoflinger_device_create_new_surface (VideoFlingerDevice * videodev)
   videodev->surface.clear ();
   videodev->isurface.clear ();
 
-  int width = (videodev->width) > 1280 ? 1280 : videodev->width;
-  int height =(videodev->height) > 720 ? 720 : videodev->height;
+  int width = (videodev->width) > 640 ? 640 : videodev->width;
+  int height = (videodev->height) > 360 ? 360 : videodev->height;
 
   videodev->surface = videoClient->createSurface (pid,
       0,
@@ -139,7 +144,7 @@ videoflinger_device_create_new_surface (VideoFlingerDevice * videodev)
       PIXEL_FORMAT_RGB_565,
       ISurfaceComposer::eFXSurfaceNormal | ISurfaceComposer::ePushBuffers);
   if (videodev->surface.get () == NULL) {
-    GST_ERROR ("Fail to create Surface\n");
+    LOGE ("Fail to create Surface\n");
     return -1;
   }
 
@@ -190,12 +195,12 @@ videoflinger_device_release (VideoFlingerDeviceHandle handle)
   videoflinger_device_unregister_framebuffers (handle);
 
   /* release ISurface & Surface */
-  //VideoFlingerDevice *videodev = (VideoFlingerDevice *) handle;
-  //videodev->isurface.clear ();
-  //videodev->surface.clear ();
+  VideoFlingerDevice *videodev = (VideoFlingerDevice *) handle;
+  videodev->isurface.clear ();
+  videodev->surface.clear ();
 
   /* delete device */
-  //delete videodev;
+  delete videodev;
   
   GST_INFO ("Leave");
   return 0;
@@ -211,7 +216,7 @@ videoflinger_device_register_framebuffers (VideoFlingerDeviceHandle handle,
 
   GST_INFO ("Enter");
   if (handle == NULL) {
-    GST_ERROR ("videodev is NULL");
+    LOGE ("videodev is NULL");
     return -1;
   }
 
@@ -220,7 +225,7 @@ videoflinger_device_register_framebuffers (VideoFlingerDeviceHandle handle,
    * more pixel type
    */
   if (format != PIXEL_FORMAT_RGB_565) {
-    GST_ERROR ("Unsupport format: %d", format);
+    LOGE ("Unsupport format: %d", format);
     return -1;
   }
 #endif
@@ -245,20 +250,13 @@ videoflinger_device_register_framebuffers (VideoFlingerDeviceHandle handle,
   videodev->crop_right = cr;
   videodev->crop_left = cl;
 
-  videodev->hor_stride = w + cr + cl;//videodev->width;
-  videodev->ver_stride = h + ct + cb;//videodev->height;
+  videodev->hor_stride = w;//w + cr + cl;//videodev->width;
+  videodev->ver_stride = h;//h + ct + cb;//videodev->height;
 
   /* create isurface internally, if no ISurface interface input */
   if (videodev->isurface.get () == NULL) {
     videoflinger_device_create_new_surface (videodev);
   }
-
-  /* use double buffer in post */
-  frameSize = videodev->width * videodev->height * 2;
-  GST_ERROR
-      ("format=%d, width=%d, height=%d, hor_stride=%d, ver_stride=%d, frameSize=%d",
-      videodev->format, videodev->width, videodev->height, videodev->hor_stride,
-      videodev->ver_stride, frameSize);
 
   /* create frame buffer heap and register with surfaceflinger */
   videodev->buffers = ISurface::BufferHeap(videodev->width, videodev->height,
@@ -270,7 +268,7 @@ videoflinger_device_register_framebuffers (VideoFlingerDeviceHandle handle,
   videodev->buffers.yuv_size = videodev->yuv_size; 
 
   if (videodev->isurface->registerBuffers (videodev->buffers) < 0) {
-    GST_ERROR ("Cannot register frame buffer!");
+    LOGE ("Cannot register frame buffer!");
     videodev->frame_heap.clear ();
     return -1;
   }
@@ -286,12 +284,13 @@ void free_hwbuffer(gpointer data)
 {
     /*GstBufferMeta * meta;
     if (meta = (GstBufferMeta*)data){
-        GST_ERROR ("free_hwbuffer buf->priv:%p", meta->priv);
+        LOGE ("free_hwbuffer buf->priv:%p", meta->priv);
         mfw_free_hw_buffer(meta->priv);
         gst_buffer_meta_free(meta);
     }*/
 }
-void 
+
+GstFlowReturn
 videoflinger_alloc (VideoFlingerDeviceHandle handle, guint size, GstBuffer **buf)
 {
     GstBufferMeta *bufmeta;
@@ -300,14 +299,28 @@ videoflinger_alloc (VideoFlingerDeviceHandle handle, guint size, GstBuffer **buf
 
     if (!videodev->frame_heap.get())
     {
-      /* create frame buffer heap base */
-      sp<MemoryHeapBase> master = new MemoryHeapBase (pmem_adsp, frameSize * 20);
-      if (master->heapID () < 0) {
-        GST_ERROR ("Error creating frame buffer heap!");
-      }
-      master->setDevice(pmem);
-      videodev->frame_heap = new MemoryHeapPmem (master, 0);
-      videodev->frame_heap->slap();
+        int success = 0;
+
+        videodev->offset = 0;
+        videodev->yuv_size = 0;
+
+        /* create frame buffer heap base */
+        for (int i=16; i>8; i--)
+        {
+            sp<MemoryHeapBase> master = new MemoryHeapBase (pmem_adsp, size * i);
+            if (master->heapID () >= 0){
+                success = 1;
+                master->setDevice(pmem);
+                videodev->frame_heap = new MemoryHeapPmem (master, 0);
+                videodev->frame_heap->slap();
+                break;
+            }
+        }
+        if (!success)
+        {
+            LOGE ("Error creating frame buffer heap!");
+            return GST_FLOW_UNEXPECTED;
+        }
     }
 
     *buf = gst_buffer_new();
@@ -325,6 +338,8 @@ videoflinger_alloc (VideoFlingerDeviceHandle handle, guint size, GstBuffer **buf
 
     videodev->yuv_size = size;
     videodev->offset += size;
+
+    return GST_FLOW_OK;
 }
 
 void
