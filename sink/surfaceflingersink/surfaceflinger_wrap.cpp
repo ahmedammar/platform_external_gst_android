@@ -239,7 +239,7 @@ videoflinger_device_register_framebuffers (VideoFlingerDeviceHandle handle,
 
   /* reset framebuffers */
   videodev->format = surface_format;
-  videodev->width = w;
+  videodev->width = w + cr + cl;
   videodev->height = h;
   
   //videodev->height *= 3;
