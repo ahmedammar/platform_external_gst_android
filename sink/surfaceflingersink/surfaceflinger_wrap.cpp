@@ -134,8 +134,8 @@ videoflinger_device_create_new_surface (VideoFlingerDevice * videodev)
   videodev->surface.clear ();
   videodev->isurface.clear ();
 
-  int width = (videodev->width) > 640 ? 640 : videodev->width;
-  int height = (videodev->height) > 360 ? 360 : videodev->height;
+  int width = (videodev->width) > 1280 ? 1280 : videodev->width;
+  int height = (videodev->height) > 720 ? 720 : videodev->height;
 
   videodev->surface = videoClient->createSurface (pid,
       0,
@@ -152,7 +152,7 @@ videoflinger_device_create_new_surface (VideoFlingerDevice * videodev)
 
   /* set Surface toppest z-order, this will bypass all isurface created 
    * in java side and make sure this surface displaied in toppest */
-  state = videodev->surface->setLayer (40000);//INT_MAX);
+  state = videodev->surface->setLayer (INT_MAX);//40000);//INT_MAX);
   if (state != NO_ERROR) {
     GST_INFO ("videoSurface->setLayer(), state = %d", state);
     videodev->surface.clear ();
@@ -193,7 +193,7 @@ videoflinger_device_release (VideoFlingerDeviceHandle handle)
 
   /* unregister frame buffer */
   videoflinger_device_unregister_framebuffers (handle);
-
+  
   /* release ISurface & Surface */
   VideoFlingerDevice *videodev = (VideoFlingerDevice *) handle;
   videodev->isurface.clear ();
@@ -268,9 +268,9 @@ videoflinger_device_register_framebuffers (VideoFlingerDeviceHandle handle,
   videodev->buffers.yuv_size = videodev->yuv_size; 
 
   if (videodev->isurface->registerBuffers (videodev->buffers) < 0) {
-    LOGE ("Cannot register frame buffer!");
+    /*LOGE ("Cannot register frame buffer!");
     videodev->frame_heap.clear ();
-    return -1;
+    return -1;*/
   }
 
   videodev->buf_index = 0;
@@ -314,7 +314,8 @@ videoflinger_alloc (VideoFlingerDeviceHandle handle, guint size, GstBuffer **buf
                 videodev->frame_heap = new MemoryHeapPmem (master, 0);
                 videodev->frame_heap->slap();
                 break;
-            }
+            } else
+                LOGI ("Failed to allocate frame_heap. i=%d", i);
         }
         if (!success)
         {
@@ -377,12 +378,17 @@ videoflinger_device_unregister_framebuffers (VideoFlingerDeviceHandle handle)
   GST_INFO ("Leave");
 }
 
+GstClockTime prev = 0, current = 0;
 void
 videoflinger_device_post (VideoFlingerDeviceHandle handle, GstBuffer *buf)
 {
-  GST_INFO ("Enter");
 
-  static int c = 0;
+    current = gst_util_get_timestamp();
+    if(prev)
+        GST_DEBUG("clock diff: %" GST_TIME_FORMAT, GST_TIME_ARGS(current-prev));
+    prev = current;
+//#if 0
+  GST_INFO ("Enter");
 
   if (handle == NULL) {
     return;
@@ -392,4 +398,5 @@ videoflinger_device_post (VideoFlingerDeviceHandle handle, GstBuffer *buf)
   videodev->isurface->postBuffer (GST_BUFFER_OFFSET(buf));
 
   GST_INFO ("Leave");
+//#endif
 }

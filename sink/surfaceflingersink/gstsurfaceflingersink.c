@@ -94,19 +94,20 @@ static void
 gst_surfaceflinger_sink_base_init (gpointer g_class)
 {
   GstElementClass *element_class = GST_ELEMENT_CLASS (g_class);
-
+#if 0
   static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
       GST_PAD_SINK,
       GST_PAD_ALWAYS,
       GST_STATIC_CAPS (GST_SURFACE_TEMPLATE_CAPS)
       );
-
+#endif
   gst_element_class_set_details (element_class,
       &gst_surfaceflinger_sink_details);
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&sink_factory));
 }
 
+static GstClockTime prev = 0;
 
 static void
 gst_surfaceflinger_sink_get_times (GstBaseSink * basesink, GstBuffer * buffer,
@@ -115,7 +116,19 @@ gst_surfaceflinger_sink_get_times (GstBaseSink * basesink, GstBuffer * buffer,
   GstSurfaceFlingerSink *surfacesink;
 
   surfacesink = GST_SURFACEFLINGERSINK (basesink);
+#if 0
+   //if(!prev)
+    *start = GST_BUFFER_TIMESTAMP (buffer);
+   /*else
+    *start = prev;*/
 
+   //*end = *start + GST_BUFFER_DURATION (buffer);
+        *end = *start + (GST_SECOND/surfacesink->fps_n);
+            /*gst_util_uint64_scale_int (GST_SECOND, surfacesink->fps_n,
+            surfacesink->fps_d);*/
+
+   //prev = *end;
+#endif
   if (GST_BUFFER_TIMESTAMP_IS_VALID (buffer)) {
     *start = GST_BUFFER_TIMESTAMP (buffer);
     if (GST_BUFFER_DURATION_IS_VALID (buffer)) {
@@ -128,8 +141,11 @@ gst_surfaceflinger_sink_get_times (GstBaseSink * basesink, GstBuffer * buffer,
       }
     }
   }
+  //*start = GST_CLOCK_TIME_NONE;
+  //*end = GST_CLOCK_TIME_NONE;
 }
 
+#if 0
 static GstCaps *
 gst_surfaceflinger_sink_getcaps (GstBaseSink * bsink)
 {
@@ -141,6 +157,7 @@ gst_surfaceflinger_sink_getcaps (GstBaseSink * bsink)
 
   return caps;
 }
+#endif
 
 static gboolean
 gst_surfaceflinger_sink_setcaps (GstBaseSink * bsink, GstCaps * vscapslist)
@@ -178,6 +195,10 @@ gst_surfaceflinger_sink_setcaps (GstBaseSink * bsink, GstCaps * vscapslist)
   GST_DEBUG_OBJECT (surfacesink,
       "register framebuffers: width=%d,  height=%d,  pixel_format=%d",
       surfacesink->width, surfacesink->height, surfacesink->pixel_format);
+
+    /* 20ms is more than enough, 80-130ms is noticable */
+  //gst_base_sink_set_max_lateness (GST_BASE_SINK (surfacesink), 50 * GST_MSECOND);
+  //gst_base_sink_set_qos_enabled (GST_BASE_SINK (surfacesink), TRUE);
 
   /* register frame buffer */
   if(videoflinger_device_register_framebuffers (surfacesink->videodev,
@@ -372,7 +393,7 @@ gst_surfaceflinger_sink_class_init (GstSurfaceFlingerSinkClass * klass)
   gstbs_class->set_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_setcaps);
   //gstbs_class->get_caps = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_getcaps);
   //gstbs_class->get_times =
-  //    GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_get_times);
+  //    GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_get_times); 
   //gstbs_class->preroll = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
   //gstbs_class->render = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_render);
   gstbs_class->start = GST_DEBUG_FUNCPTR (gst_surfaceflinger_sink_start);

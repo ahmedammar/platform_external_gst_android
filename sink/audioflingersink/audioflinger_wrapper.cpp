@@ -135,6 +135,8 @@ audioflinger_device_set (AudioFlingerDeviceHandle handle,
       case 2:
         channels = AudioSystem::CHANNEL_OUT_STEREO;
         break;
+      case 5:
+        channels = AudioSystem::CHANNEL_OUT_5POINT1;
       case 0:
       default:
         channels = 0;
