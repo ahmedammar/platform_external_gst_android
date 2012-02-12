@@ -220,17 +220,15 @@ gst_surfaceflinger_sink_render (GstBaseSink * bsink, GstBuffer * buf)
       GST_BUFFER_DATA (buf), GST_BUFFER_SIZE (buf));
 
   /* post frame buffer */
-  videoflinger_device_post (surfacesink->videodev, buf);
-
-  GST_DEBUG_OBJECT (surfacesink,
-      "gst_surfaceflinger_sink_render return GST_FLOW_OK");
-  return GST_FLOW_OK;
+  return videoflinger_device_post (surfacesink->videodev, buf);
 }
 
 static gboolean
 gst_surfaceflinger_sink_start (GstBaseSink * bsink)
 {
   GstSurfaceFlingerSink *surfacesink;
+
+  GST_INFO("%s", __func__);
 
   surfacesink = GST_SURFACEFLINGERSINK (bsink);
 
@@ -283,7 +281,7 @@ gst_surfaceflinger_sink_alloc (GstBaseSink * bsink, guint64 offset, guint size,
     GstCaps * caps, GstBuffer ** buf)
 {
     GstSurfaceFlingerSink *surfacesink = GST_SURFACEFLINGERSINK (bsink);
-    return videoflinger_alloc(surfacesink->videodev, size, buf);
+    return videoflinger_alloc(surfacesink->isurface, surfacesink->videodev, surfacesink->width, surfacesink->height, size, buf);
 }
 
 static void
@@ -296,6 +294,7 @@ gst_surfaceflinger_sink_set_property (GObject * object, guint prop_id,
 
   switch (prop_id) {
     case PROP_SURFACE:
+      GST_INFO("%s", __func__);
       surfacesink->isurface = g_value_get_pointer (value);
       GST_DEBUG_OBJECT (surfacesink, "set property: ISureface = %p",
           surfacesink->isurface);

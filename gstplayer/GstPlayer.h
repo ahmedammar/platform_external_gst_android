@@ -35,7 +35,8 @@ namespace android
     virtual status_t setSigBusHandlerStructTLSKey (pthread_key_t key);
     virtual status_t setDataSource (const char *url);
     virtual status_t setDataSource (int fd, int64_t offset, int64_t length);
-    virtual status_t setVideoSurface (const sp < ISurface > &surface);
+//    virtual status_t setVideoSurface (const sp < Surface > &surface);
+    virtual status_t setVideoSurfaceTexture (const sp < ISurfaceTexture > &surfaceTexture);
     virtual status_t prepare ();
     virtual status_t prepareAsync ();
     virtual status_t start ();
@@ -47,6 +48,8 @@ namespace android
     virtual status_t getDuration (int *msec);
     virtual status_t reset ();
     virtual status_t setLooping (int loop);
+    virtual status_t setParameter(int, const Parcel&);
+    virtual status_t getParameter(int, Parcel*);
     virtual player_type playerType ()
     {
       return GST_PLAYER;

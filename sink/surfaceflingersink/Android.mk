@@ -21,8 +21,9 @@ LOCAL_SHARED_LIBRARIES := \
 	libsurfaceflinger_client \
 	libbinder \
 	libgstbufmeta \
-	libmfwba \
-	libipu
+	libgui	\
+	libipu \
+	libEGL
 
 LOCAL_MODULE:= libgstsurfaceflinger
 
@@ -33,7 +34,8 @@ LOCAL_C_INCLUDES := \
 	external/gstreamer_aggregate/gst-plugins-fsl/libs/gstbufmeta \
 	external/gstreamer_aggregate/gst-plugins-fsl/inc/plugin \
 	external/linux-lib/ipu \
-	frameworks/base/include
+	frameworks/base/include \
+	hardware/imx/mx5x/libgralloc
 
 LOCAL_CFLAGS := -DANDROID_USE_GSTREAMER \
 	-DHAVE_CONFIG_H \

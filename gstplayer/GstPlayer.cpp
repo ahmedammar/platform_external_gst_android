@@ -97,11 +97,31 @@ namespace android
     return OK;
   }
 
-  status_t GstPlayer::setVideoSurface (const sp < ISurface > &surface)
+#if 0
+  status_t GstPlayer::setVideoSurface (const sp < Surface > &surface)
   {
     LOGV ("GstPlayer setVideoSurface(%p)", surface.get ());
     checkSetup ();
     mGstDriver->setVideoSurface (surface);
+    return OK;
+  }
+#endif
+
+  status_t GstPlayer::setVideoSurfaceTexture (const sp < ISurfaceTexture > &surfaceTexture)
+  {
+    LOGV ("GstPlayer setVideoSurfaceTexture(%p)", surfaceTexture.get ());
+    checkSetup ();
+    mGstDriver->setVideoSurface (surfaceTexture);
+    return OK;
+  }
+
+  status_t GstPlayer::setParameter(int, const Parcel&)
+  {
+    return OK;
+  }
+
+  status_t GstPlayer::getParameter(int, Parcel*)
+  {
     return OK;
   }
 

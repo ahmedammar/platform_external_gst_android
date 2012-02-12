@@ -367,11 +367,11 @@ GstDriver::setAudioStreamType (int streamType)
 }
 
 void
-GstDriver::setVideoSurface (const sp < ISurface > &surface)
+GstDriver::setVideoSurface (const sp < ISurfaceTexture > &surfaceTexture)
 {
   LOGV ("set surface to videosink");
-  mSurface = surface;
-  g_object_set (G_OBJECT (mVideoBin), "surface", surface.get (),
+  mSurfaceTexture = surfaceTexture;
+  g_object_set (G_OBJECT (mVideoBin), "surface", surfaceTexture.get (),
       (gchar *) NULL);
 }
 

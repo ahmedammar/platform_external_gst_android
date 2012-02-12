@@ -39,7 +39,7 @@ extern "C"
 #include <gst/gst.h>
 #include "mfw_gst_utils.h"
 #include "gstbufmeta.h"
-#include "mxc_ipu_hl_lib.h"
+//#include "mxc_ipu_hl_lib.h"
 
   typedef void *VideoFlingerDeviceHandle;
 
@@ -57,8 +57,8 @@ extern "C"
       VIDEO_FLINGER_PIXEL_FORMAT format);
   void videoflinger_device_unregister_framebuffers (VideoFlingerDeviceHandle
       handle);
-  void videoflinger_device_post (VideoFlingerDeviceHandle handle, GstBuffer *buf);
-  GstFlowReturn videoflinger_alloc (VideoFlingerDeviceHandle handle, guint size, GstBuffer **buf);
+  GstFlowReturn videoflinger_device_post (VideoFlingerDeviceHandle handle, GstBuffer *buf);
+  GstFlowReturn videoflinger_alloc (gpointer isurface, VideoFlingerDeviceHandle handle, guint width, guint height, guint size, GstBuffer **buf);
 #ifdef __cplusplus
 }
 #endif

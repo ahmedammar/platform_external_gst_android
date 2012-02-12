@@ -26,7 +26,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <gst/app/gstappsrc.h>
 #include <utils/List.h>
 #include <utils/Log.h>
-#include <surfaceflinger/ISurface.h>
+#include <surfaceflinger/Surface.h>
 
 // pmem interprocess shared memory support
 #include <binder/MemoryBase.h>
@@ -48,7 +48,7 @@ namespace android
     void setup ();
     void setDataSource (const char *url);
     void setFdDataSource (int fd, gint64 offset, gint64 length);
-    void setVideoSurface (const sp < ISurface > &surface);
+    void setVideoSurface (const sp < ISurfaceTexture > &surfaceTexture);
     bool setAudioSink (sp < MediaPlayerInterface::AudioSink > audiosink);
     void prepareAsync ();
     void prepareSync ();
@@ -162,7 +162,7 @@ namespace android
     static gpointer do_loop (GstDriver * ed);
     GThread *mMainThread;
     GSource *mBusWatch;
-      sp < ISurface > mSurface;
+      sp < ISurfaceTexture > mSurfaceTexture;
   };
 
 };                              // namespace android

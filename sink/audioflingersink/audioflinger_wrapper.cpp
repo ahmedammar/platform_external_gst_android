@@ -22,6 +22,7 @@
 #include <services/audioflinger/AudioFlinger.h>
 #include <media/MediaPlayerInterface.h>
 #include <media/libmediaplayerservice/MediaPlayerService.h>
+#include <system/audio.h>
 #include "audioflinger_wrapper.h"
 //#include <GstLog.h>
 
@@ -115,7 +116,7 @@ audioflinger_device_set (AudioFlingerDeviceHandle handle,
   uint32_t channels = 0;
 #endif
 
-  int format = AudioSystem::PCM_16_BIT;
+  int format = AUDIO_FORMAT_PCM_SUB_16_BIT;
 
   if (handle == NULL)
     return -1;
@@ -130,13 +131,13 @@ audioflinger_device_set (AudioFlingerDeviceHandle handle,
 #else
     switch (channelCount) {
       case 1:
-        channels = AudioSystem::CHANNEL_OUT_FRONT_LEFT;
+        channels = AUDIO_CHANNEL_OUT_FRONT_LEFT;
         break;
       case 2:
-        channels = AudioSystem::CHANNEL_OUT_STEREO;
+        channels = AUDIO_CHANNEL_OUT_STEREO;
         break;
       case 5:
-        channels = AudioSystem::CHANNEL_OUT_5POINT1;
+        channels = AUDIO_CHANNEL_OUT_5POINT1;
       case 0:
       default:
         channels = 0;
